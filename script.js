@@ -1,4 +1,4 @@
-const API_BASE = 'http://127.0.0.1:5000'; // Change to actual backend URL in production
+const API_BASE = 'https://query-backend-psi.vercel.app';
 
 document.addEventListener('DOMContentLoaded', () => {
     // Theme logic
