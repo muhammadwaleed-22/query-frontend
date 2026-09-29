@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Queries Dashboard | DevsNix</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="top-bar">
+        <h1 class="logo">DevsNix</h1>
+        <button id="theme-toggle" class="btn-outline">🌙 Dark Mode</button>
+    </div>
+
+    <div id="login-container" class="container">
+        <div class="card">
+            <h2>Admin Login</h2>
+            <form id="login-form">
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn">Login</button>
+                <p id="login-error" class="error"></p>
+            </form>
+        </div>
+    </div>
+
+    <div id="dashboard-container" class="container hidden">
+        <div class="dashboard-header">
+            <h2>Queries Dashboard</h2>
+            <div>
+                <button id="bulk-delete-btn" class="btn btn-secondary hidden" style="margin-right: 10px;">Delete Selected</button>
+                <button id="logout-btn" class="btn btn-secondary">Logout</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="table-responsive">
+                <table id="messages-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="select-all"></th>
+                            <th>Date</th>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Topic</th>
+                            <th>Description</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="messages-body">
+                        <!-- Messages will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
