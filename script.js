@@ -1,4 +1,54 @@
-const API_BASE = 'https://query-backend-psi.vercel.app';
+const API_BASE = 'https://part2computer-app-backend.vercel.app';
+
+async function parseJsonSafe(response) {
+    try {
+        return await response.json();
+    } catch {
+        return null;
+    }
+}
+
+function getErrorMessage(data, fallback) {
+    return data?.message || data?.error?.message || fallback;
+}
+
+function formatMessageDate(rawDate) {
+    if (!rawDate) return '-';
+    const normalized = typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(rawDate)
+        ? `${rawDate.replace(' ', 'T')}Z`
+        : rawDate;
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? String(rawDate) : parsed.toLocaleString();
+}
+
+function appendTextCell(tr, text, bold = false) {
+    const td = document.createElement('td');
+    if (bold) {
+        const strong = document.createElement('strong');
+        strong.textContent = text;
+        td.appendChild(strong);
+    } else {
+        td.textContent = text;
+    }
+    tr.appendChild(td);
+}
+
+function renderTableStatus(message, isError = false) {
+    const tbody = document.getElementById('messages-body');
+    tbody.innerHTML = '';
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 8;
+    td.style.textAlign = 'center';
+    if (isError) {
+        td.style.color = '#d32f2f';
+    }
+    td.textContent = message;
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    document.getElementById('select-all').checked = false;
+    updateBulkDeleteButton();
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     // Theme logic
@@ -43,13 +93,13 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             body: JSON.stringify({ username, password })
         });
         
-        const data = await response.json();
+        const data = await parseJsonSafe(response);
         
-        if (data.success) {
+        if (response.ok && data?.success && data.token) {
             localStorage.setItem('auth_token', data.token);
             showDashboard();
         } else {
-            errorEl.textContent = data.message || 'Login failed';
+            errorEl.textContent = getErrorMessage(data, 'Login failed');
         }
     } catch (err) {
         errorEl.textContent = 'Server connection error';
@@ -82,13 +132,16 @@ async function fetchMessages() {
             return;
         }
         
-        const data = await response.json();
+        const data = await parseJsonSafe(response);
         
-        if (data.success) {
-            renderMessages(data.data);
+        if (response.ok && data?.success) {
+            renderMessages(data.data || []);
+        } else {
+            renderTableStatus(getErrorMessage(data, 'Failed to fetch messages'), true);
         }
     } catch (err) {
         console.error('Failed to fetch messages');
+        renderTableStatus('Failed to connect to backend server', true);
     }
 }
 
@@ -97,43 +150,41 @@ function renderMessages(messages) {
     tbody.innerHTML = '';
     
     if (messages.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No messages found</td></tr>';
-        document.getElementById('select-all').checked = false;
-        updateBulkDeleteButton();
+        renderTableStatus('No messages found');
         return;
     }
     
     messages.forEach(msg => {
         const tr = document.createElement('tr');
-        
-        // Format date
-        const date = new Date(msg.created_at).toLocaleString();
-        
-        tr.innerHTML = `
-            <td><input type="checkbox" class="msg-checkbox" value="${msg.id}"></td>
-            <td>${date}</td>
-            <td><strong>${msg.name}</strong></td>
-            <td>${msg.phone || '-'}</td>
-            <td>${msg.email}</td>
-            <td>${msg.topic}</td>
-            <td>${msg.description}</td>
-            <td><button class="btn btn-secondary delete-btn" data-id="${msg.id}">Delete</button></td>
-        `;
-        tbody.appendChild(tr);
-    });
 
-    // Add event listeners for individual checkboxes
-    document.querySelectorAll('.msg-checkbox').forEach(cb => {
-        cb.addEventListener('change', updateBulkDeleteButton);
-    });
+        const checkboxTd = document.createElement('td');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'msg-checkbox';
+        checkbox.value = String(msg.id);
+        checkbox.addEventListener('change', updateBulkDeleteButton);
+        checkboxTd.appendChild(checkbox);
+        tr.appendChild(checkboxTd);
 
-    // Add event listeners for individual delete buttons
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+        appendTextCell(tr, formatMessageDate(msg.created_at));
+        appendTextCell(tr, msg.name || '', true);
+        appendTextCell(tr, msg.phone || '-');
+        appendTextCell(tr, msg.email || '');
+        appendTextCell(tr, msg.topic || '');
+        appendTextCell(tr, msg.description || '');
+
+        const actionTd = document.createElement('td');
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-secondary delete-btn';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.addEventListener('click', async () => {
             if (!confirm('Are you sure you want to delete this message?')) return;
-            const id = e.target.getAttribute('data-id');
-            await deleteMessage(id);
+            await deleteMessage(msg.id);
         });
+        actionTd.appendChild(deleteBtn);
+        tr.appendChild(actionTd);
+
+        tbody.appendChild(tr);
     });
 
     // Reset select all checkbox state
@@ -173,11 +224,11 @@ document.getElementById('bulk-delete-btn').addEventListener('click', async () =>
             },
             body: JSON.stringify({ ids })
         });
-        const data = await response.json();
-        if (data.success) {
+        const data = await parseJsonSafe(response);
+        if (response.ok && data?.success) {
             await fetchMessages();
         } else {
-            alert(data.message || 'Failed to delete messages');
+            alert(getErrorMessage(data, 'Failed to delete messages'));
         }
     } catch (err) {
         console.error('Failed to bulk delete messages', err);
@@ -191,11 +242,11 @@ async function deleteMessage(id) {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        const data = await response.json();
-        if (data.success) {
+        const data = await parseJsonSafe(response);
+        if (response.ok && data?.success) {
             await fetchMessages();
         } else {
-            alert(data.message || 'Failed to delete message');
+            alert(getErrorMessage(data, 'Failed to delete message'));
         }
     } catch (err) {
         console.error('Failed to delete message', err);
