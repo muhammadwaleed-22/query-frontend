@@ -433,6 +433,10 @@ tr:hover {
     background-color: var(--tr-hover);
 }
 
+.bulk-delete-btn {
+    margin-right: 10px;
+}
+
 .table-status-cell {
     text-align: center;
     padding: 30px;

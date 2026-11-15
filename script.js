@@ -2,7 +2,7 @@ const API_BASE = 'https://part2computer-app-backend.vercel.app';
 const AUTH_TOKEN_KEY = 'auth_token';
 const THEME_STORAGE_KEY = 'theme';
 const LOGOUT_TIMEOUT_MS = 8000;
-const MAX_BULK_DELETE_BATCH = 50;
+const MAX_BULK_DELETE_BATCH = 100;
 
 let activeSessionVersion = 0;
 let currentActiveView = 'messages';
@@ -316,32 +316,70 @@ async function handleLogout() {
         logoutBtn.disabled = true;
     }
 
+    let revocationConfirmed = false;
+    let notice = 'You have been logged out.';
+    let isWarning = false;
+
     if (token) {
+        let timeoutId = null;
         try {
             const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-            const timeoutId = controller ? setTimeout(() => controller.abort(), LOGOUT_TIMEOUT_MS) : null;
+            if (controller) {
+                timeoutId = setTimeout(() => controller.abort(), LOGOUT_TIMEOUT_MS);
+            }
 
-            await fetch(`${API_BASE}/logout`, {
+            const response = await fetch(`${API_BASE}/logout`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 signal: controller ? controller.signal : undefined,
             });
 
-            if (timeoutId) clearTimeout(timeoutId);
-        } catch {
-            // Proceed to client logout regardless of network status.
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+
+            if (response.ok) {
+                revocationConfirmed = true;
+                notice = 'Your session has been securely revoked and signed out.';
+                isWarning = false;
+            } else {
+                revocationConfirmed = false;
+                notice = 'You have been signed out locally, but server revocation failed or could not be confirmed.';
+                isWarning = true;
+            }
+        } catch (err) {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            revocationConfirmed = false;
+            isWarning = true;
+            if (err && (err.name === 'AbortError' || /aborted/i.test(err.message))) {
+                notice = 'Logout request timed out. You have been signed out locally, but server revocation could not be verified.';
+            } else {
+                notice = 'You have been signed out locally, but server revocation failed or could not be confirmed.';
+            }
         }
     }
 
-    clearSessionToLogin({ notice: 'You have been logged out.' });
+    clearSessionToLogin({ notice, isWarning });
+    return { revocationConfirmed, notice, isWarning };
 }
 
 async function showDashboard() {
     setDashboardError('');
     setReviewersError('');
-    document.getElementById('login-container').classList.add('hidden');
-    document.getElementById('dashboard-container').classList.remove('hidden');
-    switchView(currentActiveView);
+    const loginContainer = document.getElementById('login-container');
+    if (loginContainer) loginContainer.classList.add('hidden');
+    const dashboardContainer = document.getElementById('dashboard-container');
+    if (dashboardContainer) dashboardContainer.classList.remove('hidden');
+
+    if (currentActiveView === 'reviewers') {
+        await fetchReviewers();
+    } else {
+        await fetchMessages();
+    }
 }
 
 function switchView(viewName) {
@@ -447,7 +485,7 @@ function renderMessages(messages) {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.classList.add('msg-checkbox');
-        checkbox.dataset.id = String(msg.id);
+        checkbox.value = String(msg.id);
         checkbox.addEventListener('change', updateBulkDeleteButton);
         checkboxTd.appendChild(checkbox);
         tr.appendChild(checkboxTd);
@@ -463,8 +501,9 @@ function renderMessages(messages) {
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = 'Delete';
         deleteBtn.classList.add('btn', 'btn-secondary', 'btn-sm');
-        deleteBtn.addEventListener('click', () => {
-            void deleteMessage(msg.id, deleteBtn);
+        deleteBtn.addEventListener('click', async () => {
+            if (typeof confirm === 'function' && !confirm('Are you sure you want to delete this message?')) return;
+            await deleteMessage(msg.id, deleteBtn);
         });
         actionTd.appendChild(deleteBtn);
         tr.appendChild(actionTd);
@@ -501,15 +540,14 @@ async function handleBulkDelete() {
 
     const checkboxes = Array.from(document.querySelectorAll('.msg-checkbox:checked'));
     const ids = checkboxes
-        .map((cb) => Number.parseInt(cb.dataset.id, 10))
+        .map((cb) => Number.parseInt(cb.value, 10))
         .filter((id) => Number.isInteger(id) && id > 0);
 
     if (ids.length === 0) return;
 
-    const confirmed = typeof confirm === 'function'
-        ? confirm(`Are you sure you want to delete ${ids.length} selected message(s)?`)
-        : true;
-    if (!confirmed) return;
+    if (typeof confirm === 'function' && !confirm(`Are you sure you want to delete ${ids.length} selected message(s)?`)) {
+        return;
+    }
 
     const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
     if (bulkDeleteBtn) {
@@ -583,9 +621,6 @@ async function deleteMessage(id, triggerBtn = null) {
         handleUnauthorizedSession('Your session has expired. Please log in again.');
         return;
     }
-
-    const confirmed = typeof confirm === 'function' ? confirm('Are you sure you want to delete this message?') : true;
-    if (!confirmed) return;
 
     const requestSessionVersion = activeSessionVersion;
     setDashboardError('');
