@@ -3,60 +3,213 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Queries Dashboard | DevsNix</title>
+    <title>DevsNix Admin Portal</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="top-bar">
-        <h1 class="logo">DevsNix</h1>
-        <button id="theme-toggle" class="btn-outline">🌙 Dark Mode</button>
-    </div>
+    <header class="top-bar">
+        <div class="top-bar-brand">
+            <h1 class="logo">DevsNix</h1>
+            <span class="portal-tag">Admin Portal</span>
+        </div>
+        <div class="top-bar-actions">
+            <button id="theme-toggle" class="btn-outline">🌙 Dark Mode</button>
+        </div>
+    </header>
 
     <div id="login-container" class="container">
         <div class="card">
             <h2>Admin Login</h2>
             <form id="login-form">
                 <div class="input-group">
-                    <label>Username</label>
-                    <input type="text" id="username" required>
+                    <label for="username">Username</label>
+                    <input type="text" id="username" autocomplete="username" required>
                 </div>
                 <div class="input-group">
-                    <label>Password</label>
-                    <input type="password" id="password" required>
+                    <label for="password">Password</label>
+                    <input type="password" id="password" autocomplete="current-password" required>
                 </div>
-                <button type="submit" class="btn">Login</button>
-                <p id="login-error" class="error"></p>
+                <button type="submit" id="login-submit-btn" class="btn">Login</button>
+                <p id="login-error" class="error hidden" role="alert"></p>
+                <p id="login-notice" class="notice hidden" role="status"></p>
             </form>
         </div>
     </div>
 
-    <div id="dashboard-container" class="container hidden">
-        <div class="dashboard-header">
-            <h2>Queries Dashboard</h2>
-            <div>
-                <button id="bulk-delete-btn" class="btn btn-secondary hidden" style="margin-right: 10px;">Delete Selected</button>
-                <button id="logout-btn" class="btn btn-secondary">Logout</button>
+    <div id="dashboard-container" class="app-shell hidden">
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-menu">
+                <span class="nav-category">NAVIGATION</span>
+                <button type="button" id="nav-messages" class="nav-btn active">
+                    <span class="nav-icon">💬</span>
+                    <span class="nav-title">Messages</span>
+                </button>
+                <button type="button" id="nav-reviewers" class="nav-btn">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-title">Reviewers</span>
+                </button>
             </div>
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-secondary btn-logout">Logout</button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            <!-- Messages View -->
+            <section id="view-messages" class="dashboard-view">
+                <div class="dashboard-header">
+                    <div>
+                        <h2>Queries & Feedback</h2>
+                        <p class="section-desc">User inquiries, reports, and questions submitted from mobile app</p>
+                    </div>
+                    <div>
+                        <button id="bulk-delete-btn" class="btn btn-secondary bulk-delete-btn hidden">Delete Selected</button>
+                    </div>
+                </div>
+                <p id="dashboard-error" class="error dashboard-error hidden" role="alert"></p>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table id="messages-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="select-all"></th>
+                                    <th>Date</th>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Topic</th>
+                                    <th>Description</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="messages-body">
+                                <!-- Messages injected dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reviewers View -->
+            <section id="view-reviewers" class="dashboard-view hidden">
+                <div class="dashboard-header">
+                    <div>
+                        <h2>Reviewers Management</h2>
+                        <p class="section-desc">Technical and academic reviewers featured in app settings</p>
+                    </div>
+                    <button type="button" id="open-add-reviewer-btn" class="btn btn-action">+ Add Reviewer</button>
+                </div>
+
+                <div class="toolbar">
+                    <div class="filter-tabs">
+                        <button type="button" class="tab-btn active" data-filter="all">All (<span id="count-all">0</span>)</button>
+                        <button type="button" class="tab-btn" data-filter="technical">Technical (<span id="count-tech">0</span>)</button>
+                        <button type="button" class="tab-btn" data-filter="academic">Academic (<span id="count-acad">0</span>)</button>
+                    </div>
+                </div>
+
+                <p id="reviewers-error" class="error dashboard-error hidden" role="alert"></p>
+
+                <div class="card">
+                    <div class="table-responsive">
+                        <table id="reviewers-table">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Name</th>
+                                    <th>Designation</th>
+                                    <th>Organization / College</th>
+                                    <th>Order</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reviewers-body">
+                                <!-- Reviewers injected dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Reviewer Add / Edit Modal -->
+    <div id="reviewer-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-heading">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 id="modal-heading">Add Reviewer</h3>
+                <button type="button" id="close-modal-btn" class="modal-close" aria-label="Close">&times;</button>
+            </div>
+            <form id="reviewer-form">
+                <input type="hidden" id="reviewer-id" value="">
+                
+                <div class="input-group">
+                    <label>Reviewer Type *</label>
+                    <div class="type-selector">
+                        <label class="type-option">
+                            <input type="radio" name="reviewer-type" value="technical" checked>
+                            <span class="type-box">
+                                <strong>Technical Reviewer</strong>
+                                <small>Software, AI, Industry Experts</small>
+                            </span>
+                        </label>
+                        <label class="type-option">
+                            <input type="radio" name="reviewer-type" value="academic">
+                            <span class="type-box">
+                                <strong>Academic Reviewer</strong>
+                                <small>Principals, HODs, Lecturers</small>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="reviewer-name">Full Name *</label>
+                    <input type="text" id="reviewer-name" placeholder="e.g. Iqtarib Zia" required maxlength="100">
+                </div>
+
+                <div class="input-group">
+                    <label for="reviewer-designation">Designation / Role *</label>
+                    <input type="text" id="reviewer-designation" placeholder="e.g. Lead Software Engineer / Principal" required maxlength="100">
+                </div>
+
+                <div class="input-group">
+                    <label for="reviewer-org">Company or College / Institution *</label>
+                    <input type="text" id="reviewer-org" placeholder="e.g. ZiePie / Kips College" required maxlength="150">
+                </div>
+
+                <div class="input-group">
+                    <label for="reviewer-order">Display Order Index</label>
+                    <input type="number" id="reviewer-order" value="1" min="0" max="999">
+                    <small class="field-hint">Lower numbers appear first within their category.</small>
+                </div>
+
+                <p id="modal-error" class="error hidden" role="alert"></p>
+
+                <div class="modal-footer">
+                    <button type="button" id="cancel-modal-btn" class="btn btn-outline">Cancel</button>
+                    <button type="submit" id="save-reviewer-btn" class="btn btn-save">Save Reviewer</button>
+                </div>
+            </form>
         </div>
-        <div class="card">
-            <div class="table-responsive">
-                <table id="messages-table">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="select-all"></th>
-                            <th>Date</th>
-                            <th>Name</th>
-                            <th>Phone</th>
-                            <th>Email</th>
-                            <th>Topic</th>
-                            <th>Description</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="messages-body">
-                        <!-- Messages will be injected here -->
-                    </tbody>
-                </table>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="delete-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="delete-heading">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-header">
+                <h3 id="delete-heading">Delete Reviewer</h3>
+                <button type="button" id="close-delete-modal-btn" class="modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to remove <strong id="delete-reviewer-name"></strong>?</p>
+                <p class="delete-warning">This reviewer will be immediately removed from the mobile app.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancel-delete-btn" class="btn btn-outline">Cancel</button>
+                <button type="button" id="confirm-delete-btn" class="btn btn-secondary">Delete</button>
             </div>
         </div>
     </div>
