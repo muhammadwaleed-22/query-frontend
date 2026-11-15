@@ -675,8 +675,10 @@ async function fetchReviewers() {
     setReviewersError('');
 
     try {
-        const response = await fetch(`${API_BASE}/api/reviewers`, {
+        const cacheBuster = `_t=${Date.now()}`;
+        const response = await fetch(`${API_BASE}/api/reviewers?${cacheBuster}`, {
             headers: { 'Authorization': `Bearer ${token}` },
+            cache: 'no-store',
         });
 
         if (requestSessionVersion !== activeSessionVersion) return;
